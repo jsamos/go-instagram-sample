@@ -3,22 +3,10 @@ package main
 import (
 	"fmt"
 	"github.com/joho/godotenv"
-	"github.com/levigross/grequests"
+	"frequentbio/instagram"
 	"log"
 	"os"
 )
-
-type Client struct {
-	Token string
-}
-
-func (c *Client) GetTagRecent(tag string) (*grequests.Response, error) {
-	ro := &grequests.RequestOptions{
-		Params: map[string]string{"access_token": c.Token},
-	}
-	url := fmt.Sprintf("https://api.instagram.com/v1/tags/%v/media/recent", tag)
-	return grequests.Get(url, ro)
-}
 
 func main() {
 
@@ -28,7 +16,7 @@ func main() {
 		log.Fatalln("Error loading .env file")
 	}
 
-	client := &Client{os.Getenv("IG_ACCESS_TOKEN")}
+	client := &instagram.Client{os.Getenv("IG_ACCESS_TOKEN")}
 	resp, err := client.GetTagRecent("shaving")
 
 	if err != nil {
