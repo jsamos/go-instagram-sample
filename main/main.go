@@ -38,7 +38,14 @@ func normalizeWords(s string) []string {
 	return words
 }
 
+func extractUserId(data interface{}) string {
+	datum := data.(map[string]interface{})
+	user := datum["user"].(map[string]interface{})
+	return user["id"].(string)
+}
+
 func getUserBio(userId string) (string, bool) {
+	fmt.Println("Fetching user: ", userId)
 	client := &instagram.Client{os.Getenv("IG_ACCESS_TOKEN")}
 	resp, err := client.GetUser(userId)
 
@@ -52,16 +59,14 @@ func getUserBio(userId string) (string, bool) {
 	}
 }
 
-func processBio(userId string, freqWords *models.FreqWords) {
+func processBioWords(userId string) []string {
 	bio, err := getUserBio(userId)
 
 	if err {
 		fmt.Println("Could Not Fetch user: ", userId)
+		return []string{}
 	} else {
-		words := normalizeWords(bio)
-		for _, w := range words {
-			freqWords.AddWord(w)
-		}
+		return normalizeWords(bio)
 	}
 }
 
@@ -86,23 +91,27 @@ func main() {
 		log.Fatalln("Unable to parse JSON: ", err)
 	}
 
-	processedUsers := []string{}
+	userIds := []string{}
 	freqWords := &models.FreqWords{map[string]int{}}
 	data := dat["data"].([]interface{})
-
+	
 	for _, v := range data {
-		datum := v.(map[string]interface{})
-		user := datum["user"].(map[string]interface{})
-		userId := user["id"].(string)
-
-		if userWasProcessed(processedUsers, userId) {
-			fmt.Println("Skipping: ", user["username"])
-		} else {
-			fmt.Println("Fetching user: ", user["username"])
-			processBio(userId, freqWords)
-			processedUsers = append(processedUsers, userId)
+		userId := extractUserId(v)
+		
+		if userWasProcessed(userIds, userId) != true {
+			userIds = append(userIds, userId)
 		}
 	}
+
+	for _, userId := range userIds {
+		words := processBioWords(userId)
+
+		for _, w := range words {
+			freqWords.AddWord(w)
+		}
+	}
+
+	time.Sleep(time.Second * 10)
 
 	for word, count := range freqWords.Words {
 		if count > 1 {
