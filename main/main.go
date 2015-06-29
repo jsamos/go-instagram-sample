@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/levigross/grequests"
 	"frequentbio/instagram"
 	"frequentbio/models"
 	"github.com/joho/godotenv"
@@ -45,18 +46,42 @@ func extractUserId(data interface{}) string {
 }
 
 func getUserBio(userId string) (string, bool) {
-	fmt.Println("Fetching user: ", userId)
-	client := &instagram.Client{os.Getenv("IG_ACCESS_TOKEN")}
-	resp, err := client.GetUser(userId)
+	success := make(chan *grequests.Response)
+	fail := make(chan bool)
+	
+	go func() {
+		client := &instagram.Client{os.Getenv("IG_ACCESS_TOKEN")}
+		resp, err := client.GetUser(userId) 
 
-	if err != nil {
-		return "", true
-	} else {
-		var udat map[string]interface{}
-		resp.JSON(&udat)
-		user := udat["data"].(map[string]interface{})
-		return user["bio"].(string), false
-	}
+		if err != nil {
+			fail <- true
+		} else {
+			success <- resp
+		}
+	} ()
+
+  var value string
+  var failure bool
+  for i := 0; i < 1; i++ {
+ 		select {
+    case <- fail:
+    	value = ""
+    	failure = true
+    case <- time.After(200 * time.Millisecond):
+      fmt.Println("timed out")
+    	value = ""
+    	failure = true
+    case resp := <- success:
+   		fmt.Printf("User: %v Received\n", userId)
+			var udat map[string]interface{}
+			resp.JSON(&udat)
+			user := udat["data"].(map[string]interface{})
+			value = user["bio"].(string)
+			failure = false
+    }
+  }
+
+  return value, failure
 }
 
 func processBioWords(userId string) []string {
