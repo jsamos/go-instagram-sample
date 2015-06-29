@@ -70,6 +70,13 @@ func processBioWords(userId string) []string {
 	}
 }
 
+func manageWords(c chan string, model *models.FreqWords) {
+	for {
+		data := <-c
+		model.AddWord(data)
+	}
+}
+
 func main() {
 	start := time.Now()
 	err := godotenv.Load()
@@ -92,7 +99,6 @@ func main() {
 	}
 
 	userIds := []string{}
-	freqWords := &models.FreqWords{map[string]int{}}
 	data := dat["data"].([]interface{})
 	
 	for _, v := range data {
@@ -103,15 +109,17 @@ func main() {
 		}
 	}
 
+	freqWords := &models.FreqWords{map[string]int{}}
+	wordChannel := make(chan string)
+	go manageWords(wordChannel, freqWords)
+
 	for _, userId := range userIds {
 		words := processBioWords(userId)
 
 		for _, w := range words {
-			freqWords.AddWord(w)
+			wordChannel <- w
 		}
 	}
-
-	time.Sleep(time.Second * 10)
 
 	for word, count := range freqWords.Words {
 		if count > 1 {
