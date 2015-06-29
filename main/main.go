@@ -11,6 +11,7 @@ import (
 	"regexp"
 	"strings"
 	"time"
+	"runtime"
 )
 
 func userWasProcessed(s []string, e string) bool {
@@ -67,7 +68,7 @@ func getUserBio(userId string) (string, bool) {
     case <- fail:
     	value = ""
     	failure = true
-    case <- time.After(200 * time.Millisecond):
+    case <- time.After(500 * time.Millisecond):
       fmt.Println("timed out")
     	value = ""
     	failure = true
@@ -103,6 +104,7 @@ func manageWords(c chan string, model *models.FreqWords) {
 }
 
 func main() {
+	runtime.GOMAXPROCS(4)
 	start := time.Now()
 	err := godotenv.Load()
 
